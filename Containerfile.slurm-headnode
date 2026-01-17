@@ -1,0 +1,65 @@
+ARG BASE_IMAGE=vhpc-base:latest
+FROM ${BASE_IMAGE}
+
+# Install additional runtime dependencies
+RUN dnf install -y \
+    openssh-server \
+    passwd \
+    which && \
+    dnf clean all
+
+# Create munge key
+RUN mkdir -p /etc/munge && \
+    chown munge:munge /etc/munge && \
+    chmod 0700 /etc/munge && \
+    dd if=/dev/urandom bs=1 count=1024 > /etc/munge/munge.key && \
+    chown munge:munge /etc/munge/munge.key && \
+    chmod 0400 /etc/munge/munge.key
+RUN mkdir -p /var/run/munge/ && \
+    chown munge:munge /var/run/munge && \
+    chmod 0755 /var/run/munge
+RUN mkdir -p /var/log/munge && \
+    chown -R munge:munge /var/log/munge && \
+    chmod -R 0700 /var/log/munge
+
+# Create additional directories (slurm user already exists from base image)
+RUN mkdir -p /var/spool/slurmd && \
+    chown slurm:slurm /var/spool/slurmd
+
+
+# Enable SSH root login and start SSHD
+RUN ssh-keygen -A 
+RUN mkdir -p /var/run/sshd && \
+    echo 'root:rootpass' | chpasswd
+RUN cat << EOF > /etc/ssh/sshd_config.d/98.PermitRootLogin.conf
+PermitRootLogin yes
+EOF
+RUN cat << EOF > /etc/ssh/sshd_config.d/99.PasswordAuthentication.conf
+PasswordAuthentication yes
+EOF
+
+# Copy default Slurm configuration to staging area
+# This allows the default config to be available even when host overrides are not mounted
+COPY slurm-config/ /var/slurm_config/
+
+RUN chown -R slurm:slurm /var/slurm_config /etc/slurm /var/spool/slurm /var/log/slurm
+
+# Expose SSH
+EXPOSE 22
+
+RUN python3.12 -m venv /opt/venv
+RUN ln -s /opt/venv/bin/python /usr/bin/python
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Install SSH key management scripts
+RUN echo '#!/bin/bash' > /usr/local/bin/load-ssh-pubkey && \
+    echo 'exec /entrypoint.sh load_ssh_pubkey "$@"' >> /usr/local/bin/load-ssh-pubkey && \
+    chmod +x /usr/local/bin/load-ssh-pubkey
+
+RUN echo '#!/bin/bash' > /usr/local/bin/get-ssh-privkey && \
+    echo 'exec /entrypoint.sh get_ssh_privkey "$@"' >> /usr/local/bin/get-ssh-privkey && \
+    chmod +x /usr/local/bin/get-ssh-privkey
+
+CMD ["/entrypoint.sh", "headnode"]

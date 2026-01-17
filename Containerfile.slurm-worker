@@ -1,0 +1,47 @@
+ARG BASE_IMAGE=vhpc-base:latest
+FROM ${BASE_IMAGE}
+
+# Install additional runtime dependencies
+RUN dnf install -y \
+    openssh-server \
+    passwd \
+    which && \
+    dnf clean all
+
+# Create munge directories (key will be mounted from headnode)
+RUN mkdir -p /etc/munge /var/run/munge /var/log/munge && \
+    chown -R munge:munge /etc/munge /var/run/munge /var/log/munge && \
+    chmod 0700 /etc/munge /var/log/munge && \
+    chmod 0755 /var/run/munge
+
+# Create additional directories (slurm user already exists from base image)
+RUN mkdir -p /var/spool/slurmd && \
+    chown slurm:slurm /var/spool/slurmd
+
+
+# Enable SSH
+RUN ssh-keygen -A && \
+    mkdir -p /var/run/sshd && \
+    echo 'root:rootpass' | chpasswd
+RUN cat << EOF > /etc/ssh/sshd_config.d/98.PermitRootLogin.conf
+PermitRootLogin yes
+EOF
+RUN cat << EOF > /etc/ssh/sshd_config.d/99.PasswordAuthentication.conf
+PasswordAuthentication yes
+EOF
+
+# Worker receives Slurm config via slurm-config volume mount from headnode
+RUN chown -R slurm:slurm /etc/slurm
+
+# Expose SSH
+EXPOSE 22
+
+# link python interpreter from shared venv, if it exists
+RUN if [ -f /opt/venv/bin/python ]; then ln -s /opt/venv/bin/python /usr/bin/python; fi
+
+ENV SLURM_CONF=/etc/slurm/slurm.conf
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+CMD ["/entrypoint.sh", "worker"]
