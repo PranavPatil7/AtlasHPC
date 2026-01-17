@@ -1,21 +1,11 @@
-# vHPC: a Virtual HPC Cluster with Slurm and MPI
+# Atlas HPC – Virtualized SLURM and MPI Compute Cluster                                                        
 
 A Docker-based virtualization of a High Performance Computing (HPC) system
 running Slurm workload manager with OpenMPI support and optional full job
 accounting on Rocky Linux 9. This project creates a lean, production-ready
 multi-container environment.
 
-## About eXact lab
 
-This project is open-sourced by [eXact lab S.r.l.](https://exact-lab.it), a
-consultancy specializing in scientific and high-performance computing
-solutions. We help organizations optimize their computational workflows,
-implement scalable HPC infrastructure, and accelerate scientific research
-through tailored technology solutions.
-
-**Need HPC expertise?** [Contact us](mailto:info@exact-lab.it) for consulting
-services in scientific computing, cluster optimization, and performance
-engineering.
 
 ## Index
 
@@ -360,10 +350,3 @@ production!
 
 - Job output files are created where the job runs (usually on worker nodes)
 - Use shared storage or home directories for consistent output location
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE)
-file for details.
-
-Copyright (c) 2025 [eXact lab S.r.l.](https://exact-lab.it)
